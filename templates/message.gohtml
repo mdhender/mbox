@@ -1,0 +1,8 @@
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox.Message*/ -}}
+<article>
+    <p>Message "{{.Header.Id}}" (line {{.Start}})</p>
+    <p>Subject: {{.Header.Subject}}</p>
+    <p>Date: {{.Header.Date}}</p>
+    <textarea id="msgbody" rows="{{len .Body.Text}}" cols="80">{{.Body.Value}}</textarea>
+</article>
+{{end}}
