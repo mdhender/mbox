@@ -1,8 +1,34 @@
 {{define "content" }}{{- /*gotype:github.com/mdhender/mbox.Message*/ -}}
 <article>
-    <p>Message "{{.Header.Id}}" (line {{.Start}})</p>
-    <p>Subject: {{.Header.Subject}}</p>
-    <p>Date: {{.Header.Date}}</p>
+    <h1>{{.Subject}}</h1>
+    <p>Date: {{.Date}}</p>
     <textarea id="msgbody" rows="{{len .Body.Text}}" cols="80">{{.Body.Value}}</textarea>
+
+    <h2>Message Metadata</h2>
+    <p>Line {{.Start}}{{if .Spam}} · Spam{{end}}{{if .Struck}} · Struck{{end}}</p>
+    {{with .References}}
+        <h3>References</h3>
+        <ul>
+            {{range .}}
+                <li><a href="/messages/{{.Id}}">{{.Subject}}</a><br/>{{.Date}}</li>
+            {{end}}
+        </ul>
+    {{end}}
+    {{with .ReferencedBy}}
+        <h3>Referenced By</h3>
+        <ul>
+            {{range .}}
+                <li><a href="/messages/{{.Id}}">{{.Subject}}</a><br/>{{.Date}}</li>
+            {{end}}
+        </ul>
+    {{end}}
+    {{with .Header.References.Unknown}}
+        <h3>Unknown References</h3>
+        <ul>
+            {{range .}}
+                <li>{{.}}</li>
+            {{end}}
+        </ul>
+    {{end}}
 </article>
 {{end}}

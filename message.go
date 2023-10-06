@@ -2,17 +2,23 @@ package main
 
 import (
 	"bytes"
+	"log"
+	"time"
 )
 
 type Message struct {
-	Start  int      // line number in mbox file
-	Raw    [][]byte // the line starting the message
-	RawId  string   // ID from the "From " block header
-	Header *Header
-	Body   *Body
-	Spam   bool
-	Struck bool  // struck for copyright or ownership
-	Error  error // any error parsing the message
+	Id           string // unique ID from the "From " block header
+	Subject      string
+	Date         time.Time
+	References   []*Message
+	ReferencedBy []*Message
+	Start        int      // line number in mbox file
+	Raw          [][]byte // the line starting the message
+	Header       *Header
+	Body         *Body
+	Spam         bool
+	Struck       bool  // struck for copyright or ownership
+	Error        error // any error parsing the message
 }
 
 func (m *Message) Parse() error {
@@ -21,13 +27,12 @@ func (m *Message) Parse() error {
 		if m.Body != nil {
 			m.Body.Text = append(m.Body.Text, line)
 		} else if m.Header == nil && bytes.HasPrefix(line, []byte("From ")) {
-			m.RawId = string(line[5:])
-			m.Struck = struck[m.RawId]
+			m.Id = string(line[5:])
 			m.Header = &Header{}
 		} else if len(line) == 0 {
 			m.Body = &Body{}
 		} else if len(m.Header.Text) != 0 && (line[0] == ' ' || line[0] == '\t') {
-			m.Header.Text[len(m.Header.Text)-1] = append(m.Header.Text[len(m.Header.Text)-1], '.')
+			m.Header.Text[len(m.Header.Text)-1] = append(m.Header.Text[len(m.Header.Text)-1], ' ')
 			m.Header.Text[len(m.Header.Text)-1] = append(m.Header.Text[len(m.Header.Text)-1], line[1:]...)
 		} else {
 			m.Header.Text = append(m.Header.Text, line)
@@ -48,13 +53,21 @@ func (m *Message) Parse() error {
 	if err := m.Header.Parse(spam, struck); err != nil {
 		return err
 	}
-	mbox[m.Header.Id] = m
-	m.Spam = spam[m.Header.Id]
-	m.Struck = struck[m.Header.Id]
 
 	// parse body
 	if err := m.Body.Parse(m.Spam, m.Struck); err != nil {
 		return err
+	}
+
+	m.Subject = m.Header.Subject
+	if m.Subject == "" {
+		m.Subject = "(Missing Subject Line)"
+	}
+	dttm, err := m.Header.DateAsTime()
+	if err != nil {
+		log.Fatalf("[parse message] date %v\n", err)
+	} else {
+		m.Date = dttm
 	}
 
 	return nil

@@ -14,9 +14,10 @@ func main() {
 	flag.BoolVar(&showHeaders, "show-headers", showHeaders, "show headers")
 	flag.Parse()
 
+	started := time.Now()
 	defer func(started time.Time) {
 		log.Printf("[mbox] completed in %v\n", time.Now().Sub(started))
-	}(time.Now())
+	}(started)
 
 	lines, err := read("rec.games.pbm.mbox")
 	if err != nil {
@@ -38,31 +39,39 @@ func main() {
 	}
 	log.Printf("[mbox] read %d messages\n", len(msgs))
 
-	linesChecked, linesMatched := 0, 0
+	duplicateIds := 0
 	for _, msg := range msgs {
 		if err := msg.Parse(); err != nil {
 			log.Printf("[mbox] message %d: %v\n", msg.Start, err)
 			continue
 		}
 		// sanity check
-		if msg.Header.Lines != 0 {
-			linesChecked++
-			if msg.Header.Lines != len(msg.Body.Text) {
-				// log.Printf("[mbox] message %8d: body: lines: want %6d: got %6d\n", msg.Start, msg.Header.Lines, len(msg.Body.Text))
-			} else {
-				linesMatched++
-			}
+		if mbox[msg.Header.Id] != nil {
+			duplicateIds++
+			log.Printf("[mbox] duplicate message %q\n", msg.Header.Id)
 		}
+
+		// set the message id to the header id
+		msg.Id = msg.Header.Id
+		mbox[msg.Id] = msg
+		msg.Spam = spam[msg.Id]
+		msg.Struck = struck[msg.Id]
 	}
-	log.Printf("[mbox] checked %8d messages; lines matched on %8d, missed on %8d\n", linesChecked, linesMatched, linesChecked-linesMatched)
 	if len(msgs) != len(mbox) {
 		log.Printf("[mbox] expected %8d messages: got %8d\n", len(msgs), len(mbox))
 	}
-	// link messages
+	if duplicateIds != 0 {
+		log.Fatalf("[mbox] found %d duplicate message ids\n", duplicateIds)
+	}
+
+	// link messages forward and backwards
 	for _, msg := range msgs {
 		if err := msg.Header.LinkReferences(mbox); err != nil {
 			log.Printf("[mbox] message %d: %v\n", msg.Start, err)
-			continue
+		}
+		for _, ref := range msg.Header.References.Messages {
+			msg.References = append(msg.References, ref)
+			ref.ReferencedBy = append(ref.ReferencedBy, msg)
 		}
 	}
 
@@ -103,6 +112,8 @@ func main() {
 			log.Printf("[spam] %q\n", msg.Header.Id)
 		}
 	}
+
+	log.Printf("[mbox] completed prep in %v\n", time.Now().Sub(started))
 
 	log.Fatalln(http.ListenAndServe(":8080", a.router))
 }
