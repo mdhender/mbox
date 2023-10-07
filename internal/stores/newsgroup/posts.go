@@ -11,6 +11,7 @@ import (
 // Post is a single posting to the newsgroup
 type Post struct {
 	Id           string              // unique ID from the "From " block header
+	ShaId        string              // SHA-1 hash of the Id
 	Body         string              // body of the posting
 	Date         time.Time           // time post was added to the newsgroup
 	Error        error               // any error parsing the message

@@ -2,7 +2,6 @@ package app
 
 import (
 	"github.com/matryer/way"
-	"github.com/mdhender/mbox/internal/stores/newsgroup"
 	"log"
 	"net/http"
 	"time"
@@ -19,19 +18,15 @@ func (a *App) handleCorpus(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleIndex() http.HandlerFunc {
-	type Bucket struct {
-		Period string
-		Posts  []*newsgroup.Post
-	}
 	var payload struct {
 		ArticleCount int
 		From         string
 		Through      string
-		ByYear       map[string]*Bucket
+		Years        map[string]int
 	}
-	payload.ByYear = make(map[string]*Bucket)
+	payload.Years = a.NewsGroup.Posts.Years
 	var mind, maxd time.Time
-	for _, post := range a.NewsGroup.Posts.ById {
+	for _, post := range a.NewsGroup.Posts.ByShaId {
 		// don't include missing posts
 		if post.Missing {
 			continue
@@ -43,16 +38,6 @@ func (a *App) handleIndex() http.HandlerFunc {
 		if maxd.IsZero() || post.Date.After(maxd) {
 			maxd = post.Date
 		}
-		year := post.Date.Format("2006")
-		if year == "0001" {
-			log.Printf("hey post %q is year %s\n", post.Id, year)
-		}
-		bucket, ok := payload.ByYear[year]
-		if !ok {
-			bucket = &Bucket{Period: year}
-			payload.ByYear[year] = bucket
-		}
-		bucket.Posts = append(bucket.Posts, post)
 	}
 	payload.From = mind.Format("January 2, 2006")
 	payload.Through = maxd.Format("January 2, 2006")
@@ -64,7 +49,7 @@ func (a *App) handleIndex() http.HandlerFunc {
 
 func (a *App) handlePost(w http.ResponseWriter, r *http.Request) {
 	id := way.Param(r.Context(), "id")
-	post, ok := a.NewsGroup.Posts.ById[id]
+	post, ok := a.NewsGroup.Posts.ByShaId[id]
 	if ok {
 		log.Printf("[app] found post %q by id %q\n", post.Id, id)
 	}
@@ -82,15 +67,53 @@ func (a *App) handlePost(w http.ResponseWriter, r *http.Request) {
 	a.render(w, r, post, "layout", "post")
 }
 
-func (a *App) handleNotFound() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		payload := struct {
-			Method string
-			URL    string
-		}{
-			Method: r.Method,
-			URL:    r.URL.Path,
-		}
-		a.render(w, r, payload, "layout", "not_found")
+func (a *App) handleNotFound(w http.ResponseWriter, r *http.Request) {
+	payload := struct {
+		Method string
+		URL    string
+	}{
+		Method: r.Method,
+		URL:    r.URL.Path,
 	}
+	a.render(w, r, payload, "layout", "not_found")
+}
+
+func (a *App) handleYear(w http.ResponseWriter, r *http.Request) {
+	year := way.Param(r.Context(), "year")
+	bucket, ok := a.NewsGroup.Posts.ByPeriod[year]
+	if !ok {
+		log.Printf("[app] year %q not found\n", year)
+		a.handleNotFound(w, r)
+		return
+	}
+	a.render(w, r, bucket, "layout", "from_period")
+}
+
+func (a *App) handleYearMonth(w http.ResponseWriter, r *http.Request) {
+	year := way.Param(r.Context(), "year")
+	month := way.Param(r.Context(), "month")
+	bucket, ok := a.NewsGroup.Posts.ByPeriod[year+"/"+month]
+	if !ok {
+		log.Printf("[app] year %q month %q not found\n", year, month)
+		a.handleNotFound(w, r)
+		return
+	}
+	a.render(w, r, bucket, "layout", "from_period")
+}
+
+func (a *App) handleYearMonthDay(w http.ResponseWriter, r *http.Request) {
+	year := way.Param(r.Context(), "year")
+	month := way.Param(r.Context(), "month")
+	day := way.Param(r.Context(), "day")
+	bucket, ok := a.NewsGroup.Posts.ByPeriod[year+"/"+month+"/"+day]
+	if !ok {
+		log.Printf("[app] year %q month %q day %q not found\n", year, month, day)
+		a.handleNotFound(w, r)
+		return
+	}
+	a.render(w, r, bucket, "layout", "from_period")
+}
+
+func (a *App) notFound() http.HandlerFunc {
+	return a.handleNotFound
 }

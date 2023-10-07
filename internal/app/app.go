@@ -23,8 +23,11 @@ func New(ng *newsgroup.NewsGroup) (*App, error) {
 	}
 	a.Router.HandleFunc("GET", "/", a.handleIndex())
 	a.Router.HandleFunc("GET", "/corpus", a.handleCorpus)
+	a.Router.HandleFunc("GET", "/from/:year", a.handleYear)
+	a.Router.HandleFunc("GET", "/from/:year/:month", a.handleYearMonth)
+	a.Router.HandleFunc("GET", "/from/:year/:month/:day", a.handleYearMonthDay)
 	a.Router.HandleFunc("GET", "/posts/:id", a.handlePost)
-	a.Router.NotFound = a.handleNotFound()
+	a.Router.NotFound = a.notFound()
 
 	return a, nil
 }

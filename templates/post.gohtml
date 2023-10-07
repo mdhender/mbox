@@ -1,6 +1,7 @@
 {{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/stores/newsgroup.Post*/ -}}
 <article>
     <h1>{{.Subject}}</h1>
+    <p>From: {{.Sender}}</p>
     <p>Date: {{.Date}}</p>
     <textarea id="msgbody" rows="{{.Lines}}" cols="80">{{.Body}}</textarea>
 
@@ -8,7 +9,9 @@
         <h3>References</h3>
         <ul>
             {{range .}}
-                <li><a href="/messages/{{.Id}}">{{.Subject}}</a><br/>{{.Date}}</li>
+                <li>
+                    <a href="/posts/{{.ShaId}}">{{.Subject}}</a><br/>{{.Sender}}<br/>{{.Date}}
+                </li>
             {{end}}
         </ul>
     {{end}}
@@ -17,7 +20,9 @@
         <h3>Referenced By</h3>
         <ul>
             {{range .}}
-                <li><a href="/messages/{{.Id}}">{{.Subject}}</a><br/>{{.Date}}</li>
+                <li>
+                    <a href="/posts/{{.ShaId}}">{{.Subject}}</a><br/>{{.Sender}}<br/>{{.Date}}
+                </li>
             {{end}}
         </ul>
     {{end}}

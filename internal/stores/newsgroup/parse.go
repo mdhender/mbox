@@ -26,6 +26,7 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 		log.Printf("[post] %q: missing id", string(ch.From[5:]))
 		p.Id = string(ch.From[5:])
 	}
+	p.ShaId = sha1sum(p.Id)
 
 	// flag spam and stuck messages
 	if p.Spam = ng.Posts.Spam[p.Id]; p.Spam {
@@ -46,6 +47,52 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 	}
 	ng.Posts.ById[p.Id] = p
 	ng.Posts.ByLineNo[fmt.Sprintf("%d", p.LineNo)] = p
+	ng.Posts.ByShaId[p.ShaId] = p
+
+	// add this post to all the buckets
+	year := p.Date.Format("2006")
+	ng.Posts.Years[year] = ng.Posts.Years[year] + 1
+	yearBucket, ok := ng.Posts.ByPeriod[year]
+	if !ok {
+		if year == "1989" {
+			log.Printf("[bucket] adding year %q\n", year)
+		}
+		yearBucket = &Bucket{
+			Period:     year,
+			SubPeriods: make(map[string]*Bucket),
+			Posts:      []*Post{p},
+		}
+		ng.Posts.ByPeriod[year] = yearBucket
+	}
+	yearMonth := p.Date.Format("2006/01")
+	monthBucket, ok := ng.Posts.ByPeriod[yearMonth]
+	if !ok {
+		if year == "1989" {
+			log.Printf("[bucket] adding year %q month %q\n", year, yearMonth)
+		}
+		monthBucket = &Bucket{
+			Period:     yearMonth,
+			SubPeriods: make(map[string]*Bucket),
+			Posts:      []*Post{p},
+		}
+		ng.Posts.ByPeriod[yearMonth] = monthBucket
+		yearBucket.SubPeriods[monthBucket.Period] = monthBucket
+	}
+	yearMonthDay := p.Date.Format("2006/01/02")
+	dayBucket, ok := ng.Posts.ByPeriod[yearMonthDay]
+	if !ok {
+		if year == "1989" {
+			log.Printf("[bucket] adding year %q month %q day %q\n", year, yearMonth, yearMonthDay)
+		}
+		dayBucket = &Bucket{
+			Period:     yearMonthDay,
+			SubPeriods: make(map[string]*Bucket),
+			Posts:      []*Post{p},
+		}
+		ng.Posts.ByPeriod[yearMonthDay] = dayBucket
+		monthBucket.SubPeriods[dayBucket.Period] = dayBucket
+	}
+	dayBucket.Posts = append(dayBucket.Posts, p)
 
 	return nil
 }

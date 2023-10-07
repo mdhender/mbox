@@ -2,15 +2,17 @@
 <article>
     <h1>Welcome</h1>
     <p>
-        This site hosts an archive of {{.ArticleCount}} messages
-        <strong>rec.pbm.games</strong>
-        from {{.From}} through {{.Through}}.
+        This site hosts an archive of {{.ArticleCount}} posts from <strong>rec.pbm.games</strong>.
+    </p>
+    <p>
+        The earliest post is dated {{.From}};
+        the latest is {{.Through}}.
     </p>
 
     <h2>Index By Year</h2>
     <ul>
-        {{range .ByYear}}
-            <li>{{.Period}} - <a href="/year/{{.Period}}">{{len .Posts}} messages</a></li>
+        {{range $year, $posts := .Years}}
+            <li>{{$year}} - <a href="/from/{{$year}}">{{$posts}} posts</a></li>
         {{end}}
     </ul>
 

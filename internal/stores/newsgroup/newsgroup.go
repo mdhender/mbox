@@ -1,6 +1,10 @@
 package newsgroup
 
-import "log"
+import (
+	"crypto/sha1"
+	"encoding/base64"
+	"log"
+)
 
 type NewsGroup struct {
 	Corpus struct {
@@ -12,9 +16,18 @@ type NewsGroup struct {
 	Posts struct {
 		ById     map[string]*Post
 		ByLineNo map[string]*Post
+		ByPeriod map[string]*Bucket
+		ByShaId  map[string]*Post
 		Spam     map[string]bool
 		Struck   map[string]bool
+		Years    map[string]int
 	}
+}
+
+type Bucket struct {
+	Period     string
+	SubPeriods map[string]*Bucket
+	Posts      []*Post
 }
 
 func New() *NewsGroup {
@@ -207,6 +220,8 @@ func New() *NewsGroup {
 	}
 	ng.Posts.ById = make(map[string]*Post)
 	ng.Posts.ByLineNo = make(map[string]*Post)
+	ng.Posts.ByShaId = make(map[string]*Post)
+	ng.Posts.ByPeriod = make(map[string]*Bucket)
 	ng.Posts.Spam = map[string]bool{
 		"022d06d5-d618-449e-81fd-12355f80b74b@e1g2000pra.googlegroups.com":  true,
 		"06946b43-14ff-4e92-8a55-2e132689fb46@a29g2000pra.googlegroups.com": true,
@@ -250,6 +265,7 @@ func New() *NewsGroup {
 		"f9f76a76-b585-42ea-b4ae-939607ad4b00@re8g2000pbc.googlegroups.com": true,
 	}
 	ng.Posts.Struck = make(map[string]bool)
+	ng.Posts.Years = make(map[string]int)
 
 	return ng
 }
@@ -300,6 +316,7 @@ func (ng *NewsGroup) LinkPosts() {
 				// create it
 				xref = &Post{
 					Id:           id,
+					ShaId:        sha1sum(id),
 					Body:         "This is not the original post.\nWe were unable to locate the original in the archive.\n",
 					Keys:         make(map[string][]string),
 					Lines:        5,
@@ -321,4 +338,9 @@ func (ng *NewsGroup) LinkPosts() {
 			}
 		}
 	}
+}
+
+func sha1sum(s string) string {
+	sum := sha1.Sum([]byte(s))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

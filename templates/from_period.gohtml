@@ -1,0 +1,21 @@
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/stores/newsgroup.Bucket*/ -}}
+<article>
+    <h1>From {{.Period}}</h1>
+
+    {{if .SubPeriods}}
+        <h2>Index</h2>
+        <ul>
+            {{range .SubPeriods}}
+                <li><a href="/from/{{.Period}}">{{.Period}}</a></li>
+            {{end}}
+        </ul>
+    {{else}}
+        <h2>Posts</h2>
+        <ul>
+            {{range .Posts}}
+                <li><a href="/posts/{{.ShaId}}">{{.Subject}}</a></li>
+            {{end}}
+        </ul>
+    {{end}}
+</article>
+{{end}}
