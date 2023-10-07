@@ -25,6 +25,7 @@ type NewsGroup struct {
 }
 
 type Bucket struct {
+	Up         string // url of parent period
 	Period     string
 	SubPeriods map[string]*Bucket
 	Posts      []*Post

@@ -27,6 +27,12 @@
         </ul>
     {{end}}
 
+    {{if .Up}}
+        <nav>
+            <a href="{{.Up}}">Up</a>
+        </nav>
+    {{end}}
+
     <footer>
         <hr/>
         <p>Line {{.LineNo}}{{if .Spam}} · Spam{{end}}{{if .Struck}} · Struck{{end}}</p>

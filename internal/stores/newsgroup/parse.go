@@ -54,10 +54,8 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 	ng.Posts.Years[year] = ng.Posts.Years[year] + 1
 	yearBucket, ok := ng.Posts.ByPeriod[year]
 	if !ok {
-		if year == "1989" {
-			log.Printf("[bucket] adding year %q\n", year)
-		}
 		yearBucket = &Bucket{
+			Up:         "/",
 			Period:     year,
 			SubPeriods: make(map[string]*Bucket),
 			Posts:      []*Post{p},
@@ -67,10 +65,8 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 	yearMonth := p.Date.Format("2006/01")
 	monthBucket, ok := ng.Posts.ByPeriod[yearMonth]
 	if !ok {
-		if year == "1989" {
-			log.Printf("[bucket] adding year %q month %q\n", year, yearMonth)
-		}
 		monthBucket = &Bucket{
+			Up:         "/from/" + year,
 			Period:     yearMonth,
 			SubPeriods: make(map[string]*Bucket),
 			Posts:      []*Post{p},
@@ -81,10 +77,8 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 	yearMonthDay := p.Date.Format("2006/01/02")
 	dayBucket, ok := ng.Posts.ByPeriod[yearMonthDay]
 	if !ok {
-		if year == "1989" {
-			log.Printf("[bucket] adding year %q month %q day %q\n", year, yearMonth, yearMonthDay)
-		}
 		dayBucket = &Bucket{
+			Up:         "/from/" + yearMonth,
 			Period:     yearMonthDay,
 			SubPeriods: make(map[string]*Bucket),
 			Posts:      []*Post{p},
@@ -93,6 +87,7 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 		monthBucket.SubPeriods[dayBucket.Period] = dayBucket
 	}
 	dayBucket.Posts = append(dayBucket.Posts, p)
+	p.Up = "/from/" + yearMonth
 
 	return nil
 }
