@@ -1,0 +1,30 @@
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/stores/newsgroup.Post*/ -}}
+<article>
+    <h1>{{.Subject}}</h1>
+    <p>Date: {{.Date}}</p>
+    <textarea id="msgbody" rows="{{.Lines}}" cols="80">{{.Body}}</textarea>
+
+    {{with .References}}
+        <h3>References</h3>
+        <ul>
+            {{range .}}
+                <li><a href="/messages/{{.Id}}">{{.Subject}}</a><br/>{{.Date}}</li>
+            {{end}}
+        </ul>
+    {{end}}
+
+    {{with .ReferencedBy}}
+        <h3>Referenced By</h3>
+        <ul>
+            {{range .}}
+                <li><a href="/messages/{{.Id}}">{{.Subject}}</a><br/>{{.Date}}</li>
+            {{end}}
+        </ul>
+    {{end}}
+
+    <footer>
+        <hr/>
+        <p>Line {{.LineNo}}{{if .Spam}} · Spam{{end}}{{if .Struck}} · Struck{{end}}</p>
+    </footer>
+</article>
+{{end}}

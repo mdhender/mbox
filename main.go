@@ -1,16 +1,15 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"github.com/mdhender/mbox/internal/app"
-	"github.com/mdhender/mbox/internal/stores/mbox"
+	"github.com/mdhender/mbox/internal/chunk"
+	"github.com/mdhender/mbox/internal/stores/newsgroup"
 	"log"
+	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
-	"unicode"
 )
 
 func main() {
@@ -26,69 +25,51 @@ func main() {
 		log.Printf("[mbox] completed in %v\n", time.Now().Sub(started))
 	}(started)
 
-	input, err := os.ReadFile("rec.games.pbm.mbox")
-	if err != nil {
-		log.Fatalf("[mbox] read mbox: %v\n", err)
-	}
-	log.Printf("[mbox] read %d bytes in %v\n", len(input), time.Now().Sub(started))
-	// split into lines and trim any carriage-returns
-	lines := bytes.Split(input, []byte{'\n'})
-	for i := 0; i < len(lines); i++ {
-		lines[i] = bytes.TrimRight(lines[i], "\r")
-	}
-	log.Printf("[mbox] completed split        in %v\n", time.Now().Sub(started))
-	lines = preProcess(lines)
-	log.Printf("[mbox] completed pre-process  in %v\n", time.Now().Sub(started))
-
-	if doCorpus {
-		corpus := mkCorpus(input)
-		log.Printf("[mbox] created corpus  in %v (%d)\n", time.Now().Sub(started), len(corpus))
-	}
-
-	box, err := mbox.New(lines, showHeaders)
+	// chunks splits and cleans up the input
+	chunks, err := chunk.Chunks("rec.games.pbm.mbox")
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Printf("[mbox] completed load  in %v\n", time.Now().Sub(started))
 
+	ng := newsgroup.New()
+	for _, ch := range chunks {
+		if doCorpus {
+			ng.AddToCorpus(ch)
+		}
+		err = ng.Parse(ch)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	log.Printf("[mbox] completed parse in %v\n", time.Now().Sub(started))
+
+	// link posts (both forwards and backwards)
+	ng.LinkPosts()
+	log.Printf("[mbox] completed links in %v\n", time.Now().Sub(started))
+
+	// optional: show lists of suspect posts and quit
 	if flagSpam || flagStruck {
 		if flagSpam {
-			box.FlagSpam()
+			ng.FlagSpam()
 		}
 		if flagStruck {
-			box.FlagStruck()
+			ng.FlagStruck()
 		}
 		log.Printf("[mbox] completed flags in %v\n", time.Now().Sub(started))
 		os.Exit(2)
 	}
 
-	box.LinkMessages()
-	log.Printf("[mbox] linked messages in %v\n", time.Now().Sub(started))
+	//if post, ok := ng.Posts.ById["336E78B7.2175@earthlink.net"]; ok {
+	//	log.Printf("post %q\n%q\n", post.Id, post.Body)
+	//} else if post, ok := ng.Posts.ById["2s2eum$gfe@nyx10.cs.du.edu"]; ok {
+	//	log.Printf("post %q\n%q\n", post.Id, post.Body)
+	//}
 
-	//box.MakeCorpus()
-	log.Printf("[mbox] created corpus  in %v\n", time.Now().Sub(started))
-
-	a, err := app.New(box)
+	a, err := app.New(ng)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Fatalln(http.ListenAndServe(":8080", a.Router))
-}
-
-// mkCorpus returns all the words in the body as a slice of strings
-func mkCorpus(input []byte) map[string]int {
-	words := make(map[string]int)
-	// split on any non-letter/non-number rune.
-	for _, word := range bytes.FieldsFunc(input, func(r rune) bool {
-		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
-	}) {
-		word := strings.ToLower(string(word))
-		if _, ok := stopwords[word]; ok {
-			// filter out the stop word
-			continue
-		}
-		words[word] = words[word] + 1
-	}
-	return words
+	log.Printf("[app] serving on %s\n", net.JoinHostPort(a.Host, a.Port))
+	log.Fatalln(http.ListenAndServe(net.JoinHostPort(a.Host, a.Port), a.Router))
 }

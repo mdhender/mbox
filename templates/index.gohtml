@@ -1,4 +1,4 @@
-{{define "content" }}{{- /*gotype:github.com/mdhender/mbox.Message*/ -}}
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/stores/newsgroup.NewsGroup*/ -}}
 <article>
     <h1>Welcome</h1>
     <p>
@@ -10,7 +10,7 @@
     <h2>Index By Year</h2>
     <ul>
         {{range .ByYear}}
-            <li>{{.Period}} - <a href="/year/{{.Period}}">{{len .Messages}} messages</a></li>
+            <li>{{.Period}} - <a href="/year/{{.Period}}">{{len .Posts}} messages</a></li>
         {{end}}
     </ul>
 
