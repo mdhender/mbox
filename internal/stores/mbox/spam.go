@@ -1,4 +1,20 @@
-package main
+package mbox
+
+import "log"
+
+func (mb *MailBox) FlagSpam() {
+	// code to display header for suspected spam. should be commented out.
+	for _, msg := range mb.Messages {
+		if msg.Spam {
+			continue
+		}
+		if msg.Header.From == "HGHFGDS <fhfgfgg@gmail.com>" {
+			log.Printf("[spam] %q\n", msg.Header.Id)
+		} else if msg.Header.From == "iwcwatches5@gmail.com" {
+			log.Printf("[spam] %q\n", msg.Header.Id)
+		}
+	}
+}
 
 var spam = map[string]bool{
 	"022d06d5-d618-449e-81fd-12355f80b74b@e1g2000pra.googlegroups.com":  true,

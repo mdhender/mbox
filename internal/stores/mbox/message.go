@@ -1,4 +1,4 @@
-package main
+package mbox
 
 import (
 	"bytes"
@@ -22,8 +22,8 @@ type Message struct {
 	Words        map[string]int
 }
 
-func (m *Message) Parse() error {
-	// populate header and body with raw lines
+// ExtractHeaderAndBody splits the message into header and body lines
+func (m *Message) ExtractHeaderAndBody() {
 	for _, line := range m.Raw {
 		if m.Body != nil {
 			m.Body.Text = append(m.Body.Text, line)
@@ -49,9 +49,11 @@ func (m *Message) Parse() error {
 			}
 		}
 	}
+}
 
+func (m *Message) Parse() error {
 	// parse header
-	if err := m.Header.Parse(spam, struck); err != nil {
+	if err := m.Header.Parse(); err != nil {
 		return err
 	}
 
@@ -74,7 +76,7 @@ func (m *Message) Parse() error {
 	return nil
 }
 
-// ParseWords returns all the words in the message text as a slice of strings
-func (m *Message) ParseWords() {
-	m.Words = m.Body.Words()
-}
+//// ParseWords returns all the words in the message text as a slice of strings
+//func (m *Message) ParseWords() {
+//	m.Words = m.Body.Words()
+//}

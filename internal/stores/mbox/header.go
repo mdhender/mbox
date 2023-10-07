@@ -1,4 +1,4 @@
-package main
+package mbox
 
 import (
 	"fmt"
@@ -39,7 +39,9 @@ func (h *Header) Keys() ([]string, error) {
 	return keys, nil
 }
 
-func (h *Header) Parse(spam, hide map[string]bool) error {
+// spam, hide map[string]bool
+
+func (h *Header) Parse() error {
 	for _, text := range h.Text {
 		key, value, found := strings.Cut(string(text), ":")
 		if !found {
@@ -85,14 +87,6 @@ func (h *Header) Parse(spam, hide map[string]bool) error {
 
 	if h.Id == "" {
 		return fmt.Errorf("missing mesage-id")
-	} else if mbox[h.Id] != nil {
-		return fmt.Errorf("duplicate message id %q", h.Id)
-	}
-
-	if spam[h.Id] {
-		h.Subject = "Message has been flagged as spam."
-	} else if hide[h.Id] {
-		h.Subject = "Message has been taken down due to request."
 	}
 
 	return nil

@@ -1,9 +1,32 @@
-package main
+package mbox
 
 import (
 	"bytes"
+	"os"
 	"regexp"
 )
+
+// read loads a mailbox file, splits it into lines, and (if requested),
+// runs a pre-process filter on the lines.
+func read(path string, preProcess func([][]byte) [][]byte) ([][]byte, error) {
+	data, err := os.ReadFile("rec.games.pbm.mbox")
+	if err != nil {
+		return nil, err
+	}
+	// prepend a blank line to make splitting messages simpler
+	data = append([]byte{'\n'}, data...)
+	// split into lines and trim any carriage-returns
+	lines := bytes.Split(data, []byte{'\n'})
+	for i := 0; i < len(lines); i++ {
+		lines[i] = bytes.TrimRight(lines[i], "\r")
+	}
+
+	if preProcess != nil {
+		lines = preProcess(lines)
+	}
+
+	return lines, nil
+}
 
 // preProcess is a set of hacks to "fix" problematic inputs.
 // It is written specifically for the `rec.games.pbm` mbox file.

@@ -1,17 +1,23 @@
 package main
 
 import (
+	"bytes"
 	"flag"
-	"github.com/matryer/way"
+	"github.com/mdhender/mbox/internal/app"
+	"github.com/mdhender/mbox/internal/stores/mbox"
 	"log"
 	"net/http"
-	"sort"
+	"os"
+	"strings"
 	"time"
 	"unicode"
 )
 
 func main() {
-	showHeaders := false
+	doCorpus, showHeaders, flagSpam, flagStruck := false, false, false, false
+	flag.BoolVar(&doCorpus, "corpus", doCorpus, "create corpus")
+	flag.BoolVar(&flagSpam, "flag-spam", flagSpam, "show suspected spam headers")
+	flag.BoolVar(&flagStruck, "flag-struck", flagStruck, "show suspected struct headers")
 	flag.BoolVar(&showHeaders, "show-headers", showHeaders, "show headers")
 	flag.Parse()
 
@@ -20,123 +26,69 @@ func main() {
 		log.Printf("[mbox] completed in %v\n", time.Now().Sub(started))
 	}(started)
 
-	lines, err := read("rec.games.pbm.mbox")
+	input, err := os.ReadFile("rec.games.pbm.mbox")
 	if err != nil {
 		log.Fatalf("[mbox] read mbox: %v\n", err)
 	}
-	log.Printf("[mbox] read %d lines\n", len(lines))
+	log.Printf("[mbox] read %d bytes in %v\n", len(input), time.Now().Sub(started))
+	// split into lines and trim any carriage-returns
+	lines := bytes.Split(input, []byte{'\n'})
+	for i := 0; i < len(lines); i++ {
+		lines[i] = bytes.TrimRight(lines[i], "\r")
+	}
+	log.Printf("[mbox] completed split        in %v\n", time.Now().Sub(started))
+	lines = preProcess(lines)
+	log.Printf("[mbox] completed pre-process  in %v\n", time.Now().Sub(started))
 
-	lines = preprocess(lines)
-	log.Printf("[mbox] pre-processed lines\n")
+	if doCorpus {
+		corpus := mkCorpus(input)
+		log.Printf("[mbox] created corpus  in %v (%d)\n", time.Now().Sub(started), len(corpus))
+	}
 
-	msgs, err := split(lines)
+	box, err := mbox.New(lines, showHeaders)
 	if err != nil {
-		for _, msg := range msgs {
-			if msg.Error != nil {
-				log.Printf("[mbox] msg %d: %v\n", msg.Start, msg.Error)
-			}
-		}
-		log.Fatalf("[mbox] split: %v\n", err)
+		log.Fatal(err)
 	}
-	log.Printf("[mbox] read %d messages\n", len(msgs))
+	log.Printf("[mbox] completed load  in %v\n", time.Now().Sub(started))
 
-	duplicateIds := 0
-	for _, msg := range msgs {
-		if err := msg.Parse(); err != nil {
-			log.Printf("[mbox] message %d: %v\n", msg.Start, err)
-			continue
+	if flagSpam || flagStruck {
+		if flagSpam {
+			box.FlagSpam()
 		}
-		// sanity check
-		if mbox[msg.Header.Id] != nil {
-			duplicateIds++
-			log.Printf("[mbox] duplicate message %q\n", msg.Header.Id)
+		if flagStruck {
+			box.FlagStruck()
 		}
-
-		// set the message id to the header id
-		msg.Id = msg.Header.Id
-		mbox[msg.Id] = msg
-		msg.Spam = spam[msg.Id]
-		msg.Struck = struck[msg.Id]
-	}
-	if len(msgs) != len(mbox) {
-		log.Printf("[mbox] expected %8d messages: got %8d\n", len(msgs), len(mbox))
-	}
-	if duplicateIds != 0 {
-		log.Fatalf("[mbox] found %d duplicate message ids\n", duplicateIds)
+		log.Printf("[mbox] completed flags in %v\n", time.Now().Sub(started))
+		os.Exit(2)
 	}
 
-	// link messages forward and backwards
-	for _, msg := range msgs {
-		if err := msg.Header.LinkReferences(mbox); err != nil {
-			log.Printf("[mbox] message %d: %v\n", msg.Start, err)
-		}
-		for _, ref := range msg.Header.References.Messages {
-			msg.References = append(msg.References, ref)
-			ref.ReferencedBy = append(ref.ReferencedBy, msg)
-		}
-	}
+	box.LinkMessages()
+	log.Printf("[mbox] linked messages in %v\n", time.Now().Sub(started))
 
-	// words and stuff
-	for _, msg := range msgs {
-		msg.ParseWords()
-	}
+	//box.MakeCorpus()
+	log.Printf("[mbox] created corpus  in %v\n", time.Now().Sub(started))
 
-	headers, err := CollectHeaderKeys(msgs)
+	a, err := app.New(box)
 	if err != nil {
-		log.Fatalf("[mbox] collectHeaders: %v\n", err)
-	} else if showHeaders {
-		var text []string
-		for k := range headers {
-			text = append(text, k)
-		}
-		sort.Strings(text)
-		for _, t := range text {
-			log.Printf("[mbox] header %-35s == %8d\n", t, headers[t])
-		}
-	}
-	log.Printf("[mbox] read %8d header types\n", len(headers))
-
-	a := &App{
-		router:    way.NewRouter(),
-		templates: "../templates",
-	}
-	a.messages.byId = mbox
-	a.messages.byLine = make(map[int]*Message)
-	a.messages.corpus = make(map[string]int)
-	for _, msg := range msgs {
-		a.messages.byLine[msg.Start] = msg
-		for k, v := range msg.Words {
-			if isword(k) {
-				a.messages.corpus[k] = a.messages.corpus[k] + v
-			}
-		}
-	}
-	a.router.HandleFunc("GET", "/", a.handleIndex())
-	a.router.HandleFunc("GET", "/corpus", a.handleCorpus)
-	a.router.HandleFunc("GET", "/messages/:id", a.handleMessage)
-	a.router.NotFound = a.handleNotFound()
-
-	for _, msg := range msgs {
-		if spam[msg.Header.Id] || struck[msg.Header.Id] {
-			continue
-		}
-		if msg.Header.From == "HGHFGDS <fhfgfgg@gmail.com>" {
-			log.Printf("[spam] %q\n", msg.Header.Id)
-		} else if msg.Header.From == "iwcwatches5@gmail.com" {
-			log.Printf("[spam] %q\n", msg.Header.Id)
-		}
+		log.Fatal(err)
 	}
 
-	log.Printf("[mbox] completed prep in %v\n", time.Now().Sub(started))
-
-	log.Fatalln(http.ListenAndServe(":8080", a.router))
+	log.Fatalln(http.ListenAndServe(":8080", a.Router))
 }
 
-func isword(s string) bool {
-	for _, r := range s {
-		if !unicode.IsLetter(r) {
-			return false
+// mkCorpus returns all the words in the body as a slice of strings
+func mkCorpus(input []byte) map[string]int {
+	words := make(map[string]int)
+	// split on any non-letter/non-number rune.
+	for _, word := range bytes.FieldsFunc(input, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}) {
+		word := strings.ToLower(string(word))
+		if _, ok := stopwords[word]; ok {
+			// filter out the stop word
+			continue
 		}
+		words[word] = words[word] + 1
 	}
-	return true
+	return words
 }
