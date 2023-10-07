@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sort"
 	"time"
+	"unicode"
 )
 
 func main() {
@@ -75,6 +76,11 @@ func main() {
 		}
 	}
 
+	// words and stuff
+	for _, msg := range msgs {
+		msg.ParseWords()
+	}
+
 	headers, err := CollectHeaderKeys(msgs)
 	if err != nil {
 		log.Fatalf("[mbox] collectHeaders: %v\n", err)
@@ -94,13 +100,21 @@ func main() {
 		router:    way.NewRouter(),
 		templates: "../templates",
 	}
-	a.router.HandleFunc("GET", "/messages/:id", a.handleMessage)
-
 	a.messages.byId = mbox
 	a.messages.byLine = make(map[int]*Message)
+	a.messages.corpus = make(map[string]int)
 	for _, msg := range msgs {
 		a.messages.byLine[msg.Start] = msg
+		for k, v := range msg.Words {
+			if isword(k) {
+				a.messages.corpus[k] = a.messages.corpus[k] + v
+			}
+		}
 	}
+	a.router.HandleFunc("GET", "/", a.handleIndex())
+	a.router.HandleFunc("GET", "/corpus", a.handleCorpus)
+	a.router.HandleFunc("GET", "/messages/:id", a.handleMessage)
+	a.router.NotFound = a.handleNotFound()
 
 	for _, msg := range msgs {
 		if spam[msg.Header.Id] || struck[msg.Header.Id] {
@@ -116,4 +130,13 @@ func main() {
 	log.Printf("[mbox] completed prep in %v\n", time.Now().Sub(started))
 
 	log.Fatalln(http.ListenAndServe(":8080", a.router))
+}
+
+func isword(s string) bool {
+	for _, r := range s {
+		if !unicode.IsLetter(r) {
+			return false
+		}
+	}
+	return true
 }

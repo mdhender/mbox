@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"strings"
+	"unicode"
+)
 
 type Body struct {
 	Text  [][]byte
@@ -20,4 +23,21 @@ func (b *Body) Parse(spam, hide bool) error {
 	b.Value = sb.String()
 
 	return nil
+}
+
+// Words returns all the words in the body as a slice of strings
+func (b *Body) Words() map[string]int {
+	words := make(map[string]int)
+	// split on any non-letter/non-number rune.
+	for _, word := range strings.FieldsFunc(b.Value, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	}) {
+		word := strings.ToLower(word)
+		if _, ok := stopwords[word]; ok {
+			// filter out the stop word
+			continue
+		}
+		words[word] = words[word] + 1
+	}
+	return words
 }

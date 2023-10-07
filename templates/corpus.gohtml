@@ -1,0 +1,15 @@
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox.Message*/ -}}
+<article>
+    <h1>Corpus</h1>
+
+    {{with .Corpus}}
+        <ul>
+            {{ range $key, $value := . }}
+                {{if gt $value 8}}
+                    <li><strong>{{ $key }}</strong>: {{ $value }}</li>
+                {{end}}
+            {{ end }}
+        </ul>
+    {{end}}
+</article>
+{{end}}

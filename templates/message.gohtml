@@ -30,5 +30,13 @@
             {{end}}
         </ul>
     {{end}}
+    {{with .Words}}
+        <h3>Word List</h3>
+        <ul>
+            {{ range $key, $value := . }}
+                <li><strong>{{ $key }}</strong>: {{ $value }}</li>
+            {{ end }}
+        </ul>
+    {{end}}
 </article>
 {{end}}

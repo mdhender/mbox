@@ -1,0 +1,22 @@
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox.Message*/ -}}
+<article>
+    <h1>Welcome</h1>
+    <p>
+        This site hosts an archive of {{.ArticleCount}} messages
+        <strong>rec.pbm.games</strong>
+        from {{.From}} through {{.Through}}.
+    </p>
+
+    <h2>Index By Year</h2>
+    <ul>
+        {{range .ByYear}}
+            <li>{{.Period}} - <a href="/year/{{.Period}}">{{len .Messages}} messages</a></li>
+        {{end}}
+    </ul>
+
+    <footer>
+        <strong>NOTE:</strong>
+        Searches will be incomplete until Google finishes indexing the site.
+    </footer>
+</article>
+{{end}}

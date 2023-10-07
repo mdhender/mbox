@@ -19,6 +19,7 @@ type Message struct {
 	Spam         bool
 	Struck       bool  // struck for copyright or ownership
 	Error        error // any error parsing the message
+	Words        map[string]int
 }
 
 func (m *Message) Parse() error {
@@ -71,4 +72,9 @@ func (m *Message) Parse() error {
 	}
 
 	return nil
+}
+
+// ParseWords returns all the words in the message text as a slice of strings
+func (m *Message) ParseWords() {
+	m.Words = m.Body.Words()
 }
