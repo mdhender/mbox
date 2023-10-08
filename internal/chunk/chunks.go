@@ -2,10 +2,12 @@ package chunk
 
 import (
 	"bytes"
+	stemmer "github.com/agonopol/go-stem"
 	"log"
 	"os"
 	"regexp"
 	"time"
+	"unicode"
 )
 
 type Chunk struct {
@@ -115,6 +117,32 @@ func Chunks(path string) ([]*Chunk, error) {
 	return chunks, nil
 }
 
+func (ch *Chunk) Words(stopWords map[string]bool) map[string]int {
+	words := make(map[string]int)
+
+	// split on any non-letter/non-number rune.
+	for _, line := range ch.Body {
+		for _, token := range Tokenize(line, stopWords) {
+			word := string(token)
+			words[word] = words[word] + 1
+		}
+		//for _, word := range bytes.FieldsFunc(line, func(r rune) bool {
+		//	return !unicode.IsGraphic(r) || unicode.IsSpace(r) || r == '"' || r == '(' || r == ')' || r == ',' || r == '.'
+		//}) {
+		//	word := bytes.ToLower(word)
+		//	if isOnlyLetters(word) { // filter out words that contain non-letters
+		//		if !stopWords[string(word)] { // filter out stop-words
+		//			// convert to stem word
+		//			fjord := string(stemmer.Stem(word))
+		//			words[fjord] = words[fjord] + 1
+		//		}
+		//	}
+		//}
+	}
+
+	return words
+}
+
 func endOfMessage(lines [][]byte) bool {
 	if len(lines) == 0 {
 		return true
@@ -124,4 +152,42 @@ func endOfMessage(lines [][]byte) bool {
 		return true
 	}
 	return false
+}
+
+func isOnlyLetters(s []byte) bool {
+	for _, ch := range s {
+		if !('a' <= ch && ch <= 'z') {
+			return false
+		}
+	}
+	return true
+}
+
+func Tokenize(line []byte, stopWords map[string]bool) [][]byte {
+	var tokens [][]byte
+
+	for _, word := range bytes.FieldsFunc(line, func(r rune) bool {
+		if unicode.IsSpace(r) {
+			return true
+		} else if unicode.IsLetter(r) {
+			return false
+		} else if unicode.IsDigit(r) {
+			return false
+		} else if r == '\t' || r == '"' || r == '(' || r == ')' || r == ',' || r == '.' {
+			return true
+		}
+		return true
+	}) {
+		word := bytes.ToLower(word)
+		if isOnlyLetters(word) { // filter out words that contain non-letters
+			if len(word) > 3 { // avoid short words
+				if !stopWords[string(word)] { // filter out stop-words
+					// convert to stem word
+					tokens = append(tokens, stemmer.Stem(word))
+				}
+			}
+		}
+	}
+
+	return tokens
 }

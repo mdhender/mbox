@@ -1,30 +1,16 @@
-package memory
+package corpus
 
 import (
-	"bytes"
-	"strings"
 	"unicode"
 )
 
 type Corpus struct {
-	Words map[string]int
+	Documents map[string]map[string]int
 }
 
-func NewCorpus(input []byte) *Corpus {
-	c := &Corpus{Words: make(map[string]int)}
-
-	// split on any non-letter/non-number rune.
-	for _, word := range bytes.FieldsFunc(input, func(r rune) bool {
-		return !unicode.IsGraphic(r) || unicode.IsSpace(r) || r == '"' || r == '(' || r == ')' || r == ',' || r == '.'
-	}) {
-		word := strings.ToLower(string(word))
-		if !isWord(word) { // filter out words that contain non-letters
-			continue
-		}
-		if stopWords[word] { // filter out stop words
-			continue
-		}
-		c.Words[word] = c.Words[word] + 1
+func New() *Corpus {
+	c := &Corpus{
+		Documents: make(map[string]map[string]int),
 	}
 
 	return c

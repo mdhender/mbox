@@ -1,27 +1,34 @@
-{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/stores/newsgroup.Bucket*/ -}}
+{{define "content" }}
 <article>
-    <h1>From {{.Period}}</h1>
+    <h1>From {{.Bucket.Period}}</h1>
 
-    {{if .SubPeriods}}
+    {{if .Bucket.SubPeriods}}
         <h2>Index</h2>
         <ul>
-            {{range .SubPeriods}}
+            {{range .Bucket.SubPeriods}}
                 <li><a href="/from/{{.Period}}">{{.Period}}</a></li>
             {{end}}
         </ul>
     {{else}}
         <h2>Posts</h2>
         <ul>
-            {{range .Posts}}
-                <li><a href="/posts/{{.ShaId}}">{{.Subject}}</a></li>
+            {{range .Bucket.Posts}}
+                <li>
+                    <a href="/posts/{{.ShaId}}">{{.Subject}}</a>
+                </li>
             {{end}}
         </ul>
     {{end}}
 
-    {{if .Up}}
-        <nav>
-            <a href="{{.Up}}">Up</a>
-        </nav>
-    {{end}}
+    <hr/>
+    <nav>
+        {{if .Bucket.Up}}
+            <a href="{{.Bucket.Up}}">Up</a>
+        {{end}}
+        {{if .AllowSpamReporting}}
+            <a href="/spam">Spam List</a>
+        {{end}}
+    </nav>
+
 </article>
 {{end}}

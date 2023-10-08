@@ -1,15 +1,14 @@
-{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/stores/newsgroup.Post*/ -}}
+{{define "content" }}
 <article>
     <h1>Corpus</h1>
+    <p>Corpus contains {{len .Posts}} documents and {{len .Index}} distinct word stems.</p>
 
-    {{with .Corpus}}
-        <ul>
-            {{ range $key, $value := . }}
-                {{if gt $value 8}}
-                    <li><strong>{{ $key }}</strong>: {{ $value }}</li>
-                {{end}}
-            {{ end }}
-        </ul>
-    {{end}}
+    <ul>
+        {{ range $key, $post := .Posts }}
+            {{if $post.Words}}
+                    <li><a href="/corpus/{{$post.ShaId}}">{{ $post.Subject }}</a>: {{ len $post.Words }}</li>
+            {{end}}
+        {{ end }}
+    </ul>
 </article>
 {{end}}

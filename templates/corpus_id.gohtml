@@ -1,0 +1,23 @@
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/stores/newsgroup.Post*/ -}}
+<article>
+    <h1>{{.Subject}}</h1>
+    <ol>
+        {{range $word, $count := .Words}}
+            <li>
+                <strong>{{$word}}</strong> - {{$count}}
+            </li>
+        {{end}}
+    </ol>
+
+    {{if .Up}}
+        <nav>
+            <a href="/corpus">Up</a>
+        </nav>
+    {{end}}
+
+    <hr/>
+    <footer>
+        <p>Id {{.Id}} · Line {{.LineNo}}{{if .Spam}} · Spam{{end}}{{if .Struck}} · Struck{{end}}</p>
+    </footer>
+</article>
+{{end}}

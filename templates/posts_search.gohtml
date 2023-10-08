@@ -1,0 +1,36 @@
+{{define "content" }}
+    <article>
+        <h1>Search</h1>
+
+        <form action="/posts" method="get">
+            <label for="search">Search Term</label>
+            <input id="search" type="search" name="q" value="{{ .Search }}"/>
+            <input type="submit" value="Search"/>
+        </form>
+
+        <h2>Results</h2>
+        <ul>
+            {{if .AllowSpamReporting}}
+                {{range .Posts}}
+                    <li>
+                        <a href="/posts/{{.ShaId}}">{{.Subject}}</a>
+                        {{if not .Spam}}
+                            -- <a href="/posts/{{.ShaId}}?spam=true">Flag as Spam</a>
+                        {{end}}
+                    </li>
+                {{end}}
+            {{else}}
+                {{range .Posts}}
+                    <li>
+                        <a href="/posts/{{.ShaId}}">{{.Subject}}</a>
+                    </li>
+                {{end}}
+            {{end}}
+        </ul>
+
+        <footer>
+            <strong>NOTE:</strong>
+            Searches will be incomplete until Google finishes indexing the site.
+        </footer>
+    </article>
+{{end}}

@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
+func (ng *NewsGroup) Parse(ch *chunk.Chunk, createCorpus bool) (*Post, error) {
 	p := &Post{
 		Keys:         make(map[string][]string),
 		LineNo:       ch.Line,
@@ -19,7 +19,7 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 	// parse the header
 	err := p.ParseHeader(ch)
 	if err != nil {
-		return fmt.Errorf("post %q: %w", string(ch.From[5:]), err)
+		return nil, fmt.Errorf("post %q: %w", string(ch.From[5:]), err)
 	}
 
 	if p.Id == "" {
@@ -39,11 +39,15 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 	// parse the body
 	err = p.ParseBody(ch)
 	if err != nil {
-		return fmt.Errorf("post %q: %w", string(ch.From[5:]), err)
+		return nil, fmt.Errorf("post %q: %w", string(ch.From[5:]), err)
+	}
+	// don't index if spam or struck
+	if p.Spam || p.Struck {
+		return p, nil
 	}
 
 	if ng.Posts.ById[p.Id] != nil {
-		return fmt.Errorf("post %q: duplicate id %q", string(ch.From[5:]), p.Id)
+		return nil, fmt.Errorf("post %q: duplicate id %q", string(ch.From[5:]), p.Id)
 	}
 	ng.Posts.ById[p.Id] = p
 	ng.Posts.ByLineNo[fmt.Sprintf("%d", p.LineNo)] = p
@@ -89,5 +93,12 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk) error {
 	dayBucket.Posts = append(dayBucket.Posts, p)
 	p.Up = "/from/" + yearMonth
 
-	return nil
+	if createCorpus {
+		p.Words = ch.Words(ng.Corpus.StopWords)
+		for word := range p.Words {
+			ng.Corpus.Index[word] = append(ng.Corpus.Index[word], p)
+		}
+	}
+
+	return p, nil
 }

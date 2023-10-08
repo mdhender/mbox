@@ -25,6 +25,7 @@ type Post struct {
 	Spam         bool                // post is considered spam
 	Struck       bool                // post is struck for copyright or ownership
 	Subject      string              // subject of post
+	Words        map[string]int      // word frequency for corpus
 	Up           string              // link to parent topic or period
 }
 

@@ -13,8 +13,9 @@ import (
 )
 
 func main() {
-	doCorpus, showHeaders, flagSpam, flagStruck := false, false, false, false
+	doCorpus, doSpam, showHeaders, flagSpam, flagStruck := false, false, false, false, false
 	flag.BoolVar(&doCorpus, "corpus", doCorpus, "create corpus")
+	flag.BoolVar(&doSpam, "spam", doCorpus, "allow spam reports")
 	flag.BoolVar(&flagSpam, "flag-spam", flagSpam, "show suspected spam headers")
 	flag.BoolVar(&flagStruck, "flag-struck", flagStruck, "show suspected struct headers")
 	flag.BoolVar(&showHeaders, "show-headers", showHeaders, "show headers")
@@ -33,12 +34,12 @@ func main() {
 
 	ng := newsgroup.New()
 	for _, ch := range chunks {
-		if doCorpus {
-			ng.AddToCorpus(ch)
-		}
-		err = ng.Parse(ch)
+		post, err := ng.Parse(ch, doCorpus)
 		if err != nil {
 			log.Fatal(err)
+		}
+		if post.Words != nil {
+			ng.Corpus.Documents[post.Id] = post.Words
 		}
 	}
 	log.Printf("[mbox] completed parse in %v\n", time.Now().Sub(started))
@@ -59,13 +60,20 @@ func main() {
 		os.Exit(2)
 	}
 
+	//for _, post := range ng.SearchPosts("compliment blessed") { //  firestorm Morghoul perceval dean
+	//	log.Printf("[search] post http://localhost:8080/posts/%s\n", post.ShaId)
+	//}
+
+	// we're done with the chunks
+	chunks = nil
+
 	//if post, ok := ng.Posts.ById["336E78B7.2175@earthlink.net"]; ok {
 	//	log.Printf("post %q\n%q\n", post.Id, post.Body)
 	//} else if post, ok := ng.Posts.ById["2s2eum$gfe@nyx10.cs.du.edu"]; ok {
 	//	log.Printf("post %q\n%q\n", post.Id, post.Body)
 	//}
 
-	a, err := app.New(ng)
+	a, err := app.New(ng, doSpam)
 	if err != nil {
 		log.Fatal(err)
 	}
