@@ -1,94 +1,32 @@
-{{define "content" }}
-    <article>
-        <h1>{{.Post.Subject}}</h1>
-        <p>From: {{.Post.Sender}}</p>
-        <p>Date: {{.Post.Date}}</p>
-        {{if .AllowSpamReporting}}
-            {{if not .Post.Spam}}
-                <p><a href="/posts/{{.Post.ShaId}}?spam=true">Flag as Spam</a></p>
-            {{end}}
-        {{end}}
-
-        <textarea id="msgbody" rows="{{.Post.Lines}}" cols="80">{{.Post.Body}}</textarea>
-
-        {{if .AllowSpamReporting}}
-            {{with .Post.References}}
-                <h3>References</h3>
-                <ul>
-                    {{range .}}
-                        <li>
-                            <a href="/posts/{{.ShaId}}">{{.Subject}}</a>
-                            {{if not .Spam}}
-                                -- <a href="/posts/{{.ShaId}}?spam=true">flag spam</a>
-                            {{end}}
-                            <br/>{{.Sender}}
-                            <br/>{{.Date}}
-                        </li>
-                    {{end}}
-                </ul>
-            {{end}}
-
-            {{with .Post.ReferencedBy}}
-                <h3>Referenced By</h3>
-                <ul>
-                    {{range .}}
-                        <li>
-                            <a href="/posts/{{.ShaId}}">{{.Subject}}</a>
-                            {{if not .Spam}}
-                                -- <a href="/posts/{{.ShaId}}?spam=true">flag spam</a>
-                            {{end}}
-                            <br/>{{.Sender}}
-                            <br/>{{.Date}}
-                        </li>
-                    {{end}}
-                </ul>
-            {{end}}
-        {{else}}
-            {{with .Post.References}}
-                <h3>References</h3>
-                <ul>
-                    {{range .}}
-                        <li>
-                            <a href="/posts/{{.ShaId}}">{{.Subject}}</a>
-                            <br/>{{.Sender}}
-                            <br/>{{.Date}}
-                        </li>
-                    {{end}}
-                </ul>
-            {{end}}
-
-            {{with .Post.ReferencedBy}}
-                <h3>Referenced By</h3>
-                <ul>
-                    {{range .}}
-                        <li>
-                            <a href="/posts/{{.ShaId}}">{{.Subject}}</a>
-                            <br/>{{.Sender}}
-                            <br/>{{.Date}}
-                        </li>
-                    {{end}}
-                </ul>
-            {{end}}
-        {{end}}
-
-        <hr/>
-        <nav>
-            {{if .Post.Up}}
-                <a href="{{.Post.Up}}">Up</a>
-            {{end}}
-            {{if .AllowSpamReporting}}
-                {{if .Post.Spam}}
-                    <a href="/posts/{{.Post.ShaId}}?spam=false">Not Spam</a>
-                {{else}}
-                    <a href="/posts/{{.Post.ShaId}}?spam=true">Spam</a>
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/app.Post*/ -}}
+<article>
+    <h1>{{.Subject}}</h1>
+    <p>From: {{.From}}</p>
+    <p>Date: {{.Date}}</p>
+    <textarea id="msgbody" rows="{{.Lines}}" cols="80">{{.Body}}</textarea>
+    {{if .References}}
+        <h2>References</h2>
+        <ul>
+            {{range .References}}
+                {{if .Url}}
+                    <li><a href="{{.Url}}">{{.Subject}}</a><br/>{{.From}}<br/>{{.Date}}</li>
                 {{end}}
-                <a href="/spam">Spam List</a>
             {{end}}
-        </nav>
-        <hr/>
-        <footer>
-            <p>Id {{.Post.Id}} ·
-                Line {{.Post.LineNo}}{{if .Post.Spam}} · Spam{{end}}{{if .Post.Struck}} · Struck{{end}}</p>
-        </footer>
-    </article>
+        </ul>
+    {{end}}
+    {{if .ReferencedBy}}
+        <h2>Referenced By</h2>
+        <ul>
+            {{range .References}}
+                {{if .Url}}
+                    <li><a href="{{.Url}}">{{.Subject}}</a><br/>{{.From}}<br/>{{.Date}}</li>
+                {{end}}
+            {{end}}
+        </ul>
+    {{end}}
+    <hr/>
+    <nav>
+        {{if .Parent}}<a href="{{.Parent}}">Up</a>{{end}}
+    </nav>
+</article>
 {{end}}

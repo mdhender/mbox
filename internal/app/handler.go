@@ -1,51 +1,64 @@
 package app
 
 import (
-	"fmt"
 	"github.com/matryer/way"
-	"github.com/mdhender/mbox/internal/stores/newsgroup"
 	"log"
 	"net/http"
-	"strings"
+	"sort"
 	"time"
 )
 
-func (a *App) handleCorpus() http.HandlerFunc {
-	payload := struct {
-		Posts map[string]*newsgroup.Post
-		Index map[string][]*newsgroup.Post
-	}{
-		Posts: a.NewsGroup.Posts.ByShaId,
-		Index: a.NewsGroup.Corpus.Index,
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("[corpus] dump %d\n", len(payload.Posts))
-		a.render(w, r, payload, "layout", "corpus")
-	}
+type Index struct {
+	ArticleCount int
+	From         string
+	Through      string
+	Years        []*Period
 }
 
-func (a *App) handleCorpusId(w http.ResponseWriter, r *http.Request) {
-	id := way.Param(r.Context(), "id")
-	post, ok := a.NewsGroup.Posts.ByShaId[id]
-	if !ok {
-		log.Printf("[app] corpus post %q not found\n", id)
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
-		return
-	}
-	a.render(w, r, post, "layout", "corpus_id")
+type Post struct {
+	Id           string
+	Url          string
+	Spam         bool
+	Struck       bool
+	From         string
+	Subject      string
+	Date         string
+	Lines        int
+	Body         string
+	References   []Reference // list of id
+	ReferencedBy []Reference // list of id
+	Parent       string      // url of parent post
+}
+
+type PostsCollection struct {
+	Name   string
+	Parent string
+	Posts  []*Post
+}
+
+type Reference struct {
+	Url     string
+	From    string
+	Subject string
+	Date    string
+}
+
+type Period struct {
+	Name  string
+	Url   string
+	Count int
+}
+
+type Bucket struct {
+	Name     string
+	Url      string
+	Parent   string
+	Count    int
+	Children []*Bucket
 }
 
 func (a *App) handleIndex() http.HandlerFunc {
-	var payload struct {
-		AllowSpamReporting bool
-		ArticleCount       int
-		From               string
-		Search             string
-		Through            string
-		Years              map[string]int
-	}
-	payload.AllowSpamReporting = a.NewSpam.AllowReports
-	payload.Years = a.NewsGroup.Posts.Years
+	var payload Index
 	var mind, maxd time.Time
 	for _, post := range a.NewsGroup.Posts.ByShaId {
 		// don't include missing posts
@@ -62,6 +75,16 @@ func (a *App) handleIndex() http.HandlerFunc {
 	}
 	payload.From = mind.Format("January 2, 2006")
 	payload.Through = maxd.Format("January 2, 2006")
+	for year, count := range a.NewsGroup.Posts.Years {
+		payload.Years = append(payload.Years, &Period{
+			Name:  year,
+			Count: count,
+			Url:   "/from/" + year,
+		})
+	}
+	sort.Slice(payload.Years, func(i, j int) bool {
+		return payload.Years[i].Name < payload.Years[j].Name
+	})
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		a.render(w, r, payload, "layout", "index")
@@ -81,154 +104,120 @@ func (a *App) handleNotFound(w http.ResponseWriter, r *http.Request) {
 
 // post may be a simple index or a complicated query
 func (a *App) handlePosts(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		AllowSpamReporting bool
-		Post               *newsgroup.Post
-	}
-	payload.AllowSpamReporting = a.NewSpam.AllowReports
+	var payload Post
 
 	id := way.Param(r.Context(), "id")
 	post, ok := a.NewsGroup.Posts.ByShaId[id]
-	if ok {
-		log.Printf("[app] found post %q by id %q\n", post.Id, id)
-	}
-	if !ok {
-		post, ok = a.NewsGroup.Posts.ByLineNo[id]
-		if ok {
-			log.Printf("[app] found post %q by line number %q\n", post.Id, id)
-		}
-	}
 	if !ok {
 		log.Printf("[app] post %q not found\n", id)
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		a.handleNotFound(w, r)
 		return
 	}
-	payload.Post = post
-
-	if pSpamFlag := r.URL.Query().Get("spam"); a.NewSpam.AllowReports && pSpamFlag != "" {
-		a.NewSpam.Lock()
-		defer a.NewSpam.Unlock()
-		switch pSpamFlag {
-		case "false":
-			if _, ok := a.NewSpam.Posts[post.ShaId]; ok {
-				post.Spam = false
-				post.Subject = strings.TrimPrefix(post.Subject, "(spam) ")
-				delete(a.NewSpam.Posts, post.ShaId)
-			}
-		case "true":
-			if post.Spam {
-				// already tagged, so do nothing
-			} else if _, ok := a.NewSpam.Posts[post.ShaId]; ok {
-				// already in the new spam group?
-			} else {
-				post.Spam = true
-				if !strings.HasPrefix(post.Subject, "(spam) ") {
-					post.Subject = "(spam) " + post.Subject
-				}
-				a.NewSpam.Posts[post.ShaId] = post
-			}
+	log.Printf("[app] found post %q by id %q\n", post.Id, id)
+	payload = Post{
+		Id:      post.ShaId,
+		Url:     "/posts/" + post.ShaId,
+		Spam:    post.Spam,
+		Struck:  post.Struck,
+		From:    post.Sender,
+		Subject: post.Subject,
+		Date:    post.Date.Format(time.RFC1123Z),
+		Lines:   post.Lines,
+		Body:    post.Body,
+		Parent:  post.Date.Format("/from/2006/01/02"),
+	}
+	for _, ref := range post.References {
+		if ref.Subject != "** missing post **" {
+			payload.References = append(payload.References, Reference{
+				Url:     "/posts/" + ref.ShaId,
+				From:    ref.Sender,
+				Subject: ref.Subject,
+				Date:    ref.Date.Format(time.RFC1123Z),
+			})
 		}
-		http.Redirect(w, r, fmt.Sprintf("/posts/%s", post.ShaId), http.StatusSeeOther)
-		return
 	}
+	for _, ref := range post.ReferencedBy {
+		if ref.Subject != "** missing post **" {
+			payload.ReferencedBy = append(payload.ReferencedBy, Reference{
+				Url:     "/posts/" + ref.ShaId,
+				From:    ref.Sender,
+				Subject: ref.Subject,
+				Date:    ref.Date.Format(time.RFC1123Z),
+			})
+		}
+	}
+
 	a.render(w, r, payload, "layout", "post")
 }
 
-func (a *App) handlePostsSearch() http.HandlerFunc {
-	type payload struct {
-		AllowSpamReporting bool
-		Search             string
-		Posts              []*newsgroup.Post
-	}
-	return func(w http.ResponseWriter, r *http.Request) {
-		var p payload
-		p.AllowSpamReporting = a.NewSpam.AllowReports
-		p.Search = r.URL.Query().Get("q")
-		// log.Printf("[posts] pSearch %+v\n", p.Search)
-
-		if p.Search != "" {
-			// "compliment blessed" firestorm Morghoul perceval dean
-			for _, post := range a.NewsGroup.SearchPosts(p.Search) { //
-				p.Posts = append(p.Posts, post)
-				// log.Printf("[search] post http://localhost:8080/posts/%s\n", post.ShaId)
-			}
-		}
-
-		a.render(w, r, p, "layout", "posts_search")
-	}
-}
-
-func (a *App) handleSpam(w http.ResponseWriter, r *http.Request) {
-	a.NewSpam.Lock()
-	defer a.NewSpam.Unlock()
-
-	var payload struct {
-		Lines int    // number of spams
-		Body  string // list of spam
-	}
-	payload.Lines = len(a.NewSpam.Posts) + 2
-	for _, post := range a.NewSpam.Posts {
-		payload.Body += fmt.Sprintf("\n%q: true,", post.Id)
-	}
-	payload.Body += "\n"
-	a.render(w, r, payload, "layout", "spam")
-}
-
 func (a *App) handleYear(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		AllowSpamReporting bool
-		Bucket             *newsgroup.Bucket
-	}
-	payload.AllowSpamReporting = a.NewSpam.AllowReports
-
 	year := way.Param(r.Context(), "year")
+	payload := Bucket{Name: year, Parent: "/posts"}
 	bucket, ok := a.NewsGroup.Posts.ByPeriod[year]
 	if !ok {
 		log.Printf("[app] year %q not found\n", year)
 		a.handleNotFound(w, r)
 		return
 	}
-	payload.Bucket = bucket
-	a.render(w, r, payload, "layout", "from_period")
+	for _, child := range bucket.SubPeriods {
+		payload.Children = append(payload.Children, &Bucket{
+			Name:  child.Period,
+			Url:   "/from/" + child.Period,
+			Count: child.Count(),
+		})
+	}
+	sort.Slice(payload.Children, func(i, j int) bool {
+		return payload.Children[i].Name < payload.Children[j].Name
+	})
+	a.render(w, r, payload, "layout", "from_yyyy")
 }
 
 func (a *App) handleYearMonth(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		AllowSpamReporting bool
-		Bucket             *newsgroup.Bucket
-	}
-	payload.AllowSpamReporting = a.NewSpam.AllowReports
-
 	year := way.Param(r.Context(), "year")
 	month := way.Param(r.Context(), "month")
-	bucket, ok := a.NewsGroup.Posts.ByPeriod[year+"/"+month]
+	payload := Bucket{Name: year + "/" + month, Parent: "/from/" + year}
+	bucket, ok := a.NewsGroup.Posts.ByPeriod[payload.Name]
 	if !ok {
 		log.Printf("[app] year %q month %q not found\n", year, month)
 		a.handleNotFound(w, r)
 		return
 	}
-	payload.Bucket = bucket
-	a.render(w, r, payload, "layout", "from_period")
+	for _, child := range bucket.SubPeriods {
+		payload.Children = append(payload.Children, &Bucket{
+			Name:  child.Period,
+			Url:   "/from/" + child.Period,
+			Count: child.Count(),
+		})
+	}
+	sort.Slice(payload.Children, func(i, j int) bool {
+		return payload.Children[i].Name < payload.Children[j].Name
+	})
+	a.render(w, r, payload, "layout", "from_yyyy_mm")
 }
 
 func (a *App) handleYearMonthDay(w http.ResponseWriter, r *http.Request) {
-	var payload struct {
-		AllowSpamReporting bool
-		Bucket             *newsgroup.Bucket
-	}
-	payload.AllowSpamReporting = a.NewSpam.AllowReports
-
 	year := way.Param(r.Context(), "year")
 	month := way.Param(r.Context(), "month")
 	day := way.Param(r.Context(), "day")
-	bucket, ok := a.NewsGroup.Posts.ByPeriod[year+"/"+month+"/"+day]
+	payload := PostsCollection{
+		Name:   year + "/" + month + "/" + day,
+		Parent: "/from/" + year + "/" + month,
+	}
+	bucket, ok := a.NewsGroup.Posts.ByPeriod[payload.Name]
 	if !ok {
 		log.Printf("[app] year %q month %q day %q not found\n", year, month, day)
 		a.handleNotFound(w, r)
 		return
 	}
-	payload.Bucket = bucket
-	a.render(w, r, payload, "layout", "from_period")
+	for _, post := range bucket.Posts {
+		payload.Posts = append(payload.Posts, &Post{
+			Url:     "/posts/" + post.ShaId,
+			From:    post.Sender,
+			Subject: post.Subject,
+			Date:    post.Date.Format("15:04:05"),
+		})
+	}
+	a.render(w, r, payload, "layout", "from_yyyy_mm_dd")
 }
 
 func (a *App) notFound() http.HandlerFunc {

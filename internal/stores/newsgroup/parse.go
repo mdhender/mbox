@@ -60,7 +60,7 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk, createCorpus bool) (*Post, error) {
 	yearBucket, ok := ng.Posts.ByPeriod[year]
 	if !ok {
 		yearBucket = &Bucket{
-			Up:         "/",
+			Parent:     "/posts",
 			Period:     year,
 			SubPeriods: make(map[string]*Bucket),
 			Posts:      []*Post{p},
@@ -71,7 +71,7 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk, createCorpus bool) (*Post, error) {
 	monthBucket, ok := ng.Posts.ByPeriod[yearMonth]
 	if !ok {
 		monthBucket = &Bucket{
-			Up:         "/from/" + year,
+			Parent:     "/from/" + year,
 			Period:     yearMonth,
 			SubPeriods: make(map[string]*Bucket),
 			Posts:      []*Post{p},
@@ -83,7 +83,7 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk, createCorpus bool) (*Post, error) {
 	dayBucket, ok := ng.Posts.ByPeriod[yearMonthDay]
 	if !ok {
 		dayBucket = &Bucket{
-			Up:         "/from/" + yearMonth,
+			Parent:     "/from/" + yearMonth,
 			Period:     yearMonthDay,
 			SubPeriods: make(map[string]*Bucket),
 			Posts:      []*Post{p},

@@ -1,0 +1,19 @@
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/app.Bucket*/ -}}
+<article>
+    <h1>From {{.Name}}</h1>
+    <table>
+        <thead>
+        <tr><td>Time</td><td>Subject</td><td>From</td></tr>
+        </thead>
+        <tbody>
+        {{range .Posts}}
+            <tr><td>{{.Date}}</td><td><a href="{{.Url}}">{{.Subject}}</a></td><td>{{.From}}</td></tr>
+        {{end}}
+        </tbody>
+    </table>
+    <hr/>
+    <nav>
+        {{if .Parent}}<a href="{{.Parent}}">Up</a>{{end}}
+    </nav>
+</article>
+{{end}}

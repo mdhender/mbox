@@ -1,38 +1,24 @@
-{{define "content" }}
-    <article>
-        <h1>Welcome</h1>
-        <p>
-            This site hosts an archive of {{.ArticleCount}} posts from <strong>rec.pbm.games</strong>.
-        </p>
-        <p>
-            The earliest post is dated {{.From}};
-            the latest is {{.Through}}.
-        </p>
-
-        <form action="/posts" method="get">
-            <label for="search">Search Term</label>
-            <input id="search" type="search" name="q" value="{{ .Search }}"/>
-            <input type="submit" value="Search"/>
-        </form>
-
-        <h2>Index By Year</h2>
-        <ul>
-            {{range $year, $posts := .Years}}
-                <li>{{$year}} - <a href="/from/{{$year}}">{{$posts}} posts</a></li>
-            {{end}}
-        </ul>
-
-        {{if .AllowSpamReporting}}
-            <hr/>
-            <nav>
-                <a href="/spam">Spam List</a>
-            </nav>
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/app.Index*/ -}}
+<article>
+    <h1>Welcome</h1>
+    <p>
+        This site hosts an archive of {{.ArticleCount}} posts from <strong>rec.pbm.games</strong>.
+    </p>
+    <p>
+        The earliest post is dated {{.From}};
+        the latest is {{.Through}}.
+    </p>
+    <h2>Index By Year</h2>
+    <ul>
+        {{range .Years}}
+            <li>{{.Name}} - <a href="{{.Url}}">{{.Count}} posts</a></li>
         {{end}}
-
-        <hr/>
-        <footer>
-            <strong>NOTE:</strong>
-            Searches will be incomplete until Google finishes indexing the site.
-        </footer>
-    </article>
+    </ul>
+    <p>NOTE: Post counts may be off due to missing or spam postings.</p>
+    <hr/>
+    <footer>
+        <strong>NOTE:</strong>
+        Searches will be incomplete until Google finishes indexing the site.
+    </footer>
+</article>
 {{end}}

@@ -1,0 +1,20 @@
+{{define "content" }}{{- /*gotype:github.com/mdhender/mbox/internal/app.Bucket*/ -}}
+<article>
+    <h1>From {{.Name}}</h1>
+    <table>
+        <thead>
+        <tr><td>Date</td><td>Number of Posts</tr>
+        </thead>
+        <tbody>
+        {{range .Children}}
+            <tr><td><a href="{{.Url}}">{{.Name}}</a></td><td>{{.Count}} posts</td></tr>
+        {{end}}
+        </tbody>
+    </table>
+    <p>NOTE: Post counts may be off due to missing or spam postings.</p>
+    <hr/>
+    <nav>
+        {{if .Parent}}<a href="{{.Parent}}">Up</a>{{end}}
+    </nav>
+</article>
+{{end}}

@@ -28,7 +28,7 @@ type NewsGroup struct {
 }
 
 type Bucket struct {
-	Up         string // url of parent period
+	Parent     string // url of parent period
 	Period     string
 	SubPeriods map[string]*Bucket
 	Posts      []*Post
@@ -603,6 +603,14 @@ func (ng *NewsGroup) SearchPosts(input string) map[string]*Post {
 			// result is the intersection
 			posts = intersection
 		}
+	}
+	return posts
+}
+
+func (b *Bucket) Count() int {
+	posts := len(b.Posts)
+	for _, child := range b.SubPeriods {
+		posts += child.Count()
 	}
 	return posts
 }
