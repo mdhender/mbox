@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"github.com/mdhender/mbox/internal/app"
 	"github.com/mdhender/mbox/internal/chunk"
@@ -66,6 +67,22 @@ func main() {
 
 	// we're done with the chunks
 	chunks = nil
+
+	if doCorpus {
+		index := make(map[string][]int)
+		for k, v := range ng.Corpus.Index {
+			docs := make([]int, len(v))
+			for _, post := range v {
+				docs = append(docs, post.LineNo)
+			}
+			index[k] = docs
+		}
+		data, err := json.Marshal(index)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Printf("len(data) is %d\n", len(data))
+	}
 
 	//if post, ok := ng.Posts.ById["336E78B7.2175@earthlink.net"]; ok {
 	//	log.Printf("post %q\n%q\n", post.Id, post.Body)

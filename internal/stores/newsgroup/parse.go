@@ -27,6 +27,7 @@ func (ng *NewsGroup) Parse(ch *chunk.Chunk, createCorpus bool) (*Post, error) {
 		p.Id = string(ch.From[5:])
 	}
 	p.ShaId = sha1sum(p.Id)
+	p.ShaId = fmt.Sprintf("%x", p.LineNo)
 
 	// flag spam and stuck messages
 	if p.Spam = ng.Posts.Spam[p.Id]; p.Spam {
